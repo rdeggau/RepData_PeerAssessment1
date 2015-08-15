@@ -1,25 +1,91 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: PA1_template.md
-  html_document: PA1_template.hmtl
-    keep_md: true
+title: 'Reproducible Research: Peer Assessment 1'
+author: "Renato Deggau - rdeggau@gmail.com"
+date: "Tuesday, August 11, 2015"
+output: html_document
+keep_md: true
 ---
-
-
 ## Loading and preprocessing the data
-
-
+```{r loading, echo = TRUE}
+monitoring <- read.csv("./activity.csv", header=TRUE)
+summary(monitoring)
+```
 
 ## What is mean total number of steps taken per day?
+### histogram and mean and median
 
-
+```{r histogram, echo = TRUE}
+library(ggplot2)
+monitoringHist <- aggregate(x = monitoring$steps , by = list(monitoring$date), FUN = sum ,na.rm=TRUE)
+names(monitoringHist) <- c("date","steps")
+histplot <- ggplot(monitoringHist,aes(x = steps)) +
+            ggtitle("Histogram of Number of Steps By Day") +
+            xlab("Steps") +
+            geom_histogram(binwidth = 2500)
+histplot
+mean(monitoringHist$steps)
+median(monitoringHist$steps)
+```
 
 ## What is the average daily activity pattern?
-
-
+```{r averageDaily, echo = TRUE}
+activity <- aggregate(x = monitoring$steps , by = list(monitoring$interval), 
+                      FUN = mean , na.rm=TRUE)
+names(activity) <- c("interval","steps")
+lineplot <-  ggplot(activity, aes(interval,steps)) +
+                 ggtitle("Average Steps - Time Series") +
+                 geom_line()
+lineplot
+activity$interval[which.max(activity$steps)]
+```
 
 ## Imputing missing values
-
-
+### number of missing values
+```{r missingValues, echo = TRUE}
+sum(is.na(monitoring))
+```
+### fill missing values - use the mean
+```{r fillmissingValues, echo = TRUE}
+monitoringClean <- monitoring
+monitoringClean$steps[is.na(monitoringClean$steps)] <- 
+    tapply(monitoring$steps, monitoring$interval, mean, na.rm = TRUE)
+summary(monitoringClean)
+sum(is.na(monitoringClean))
+```
+### new histogram with new data
+```{r newhistogram, echo = TRUE}
+library(ggplot2)
+monitoringCleanHist <- aggregate(x = monitoringClean$steps , 
+                         by = list(monitoringClean$date), FUN = sum ,na.rm=TRUE)
+names(monitoringCleanHist) <- c("date","steps")
+histplot <- ggplot(monitoringCleanHist,aes(x = steps)) +
+            ggtitle("Histogram of Number of Steps By Day Without Missing Values") +
+            xlab("Steps") +
+            geom_histogram(binwidth = 2500)
+histplot
+mean(monitoringCleanHist$steps)
+median(monitoringCleanHist$steps)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+### Create weekdays and weekends variable
+```{r weekdays, echo = TRUE}
+daytype <- function(date) {
+    if (weekdays(as.Date(date)) %in% c("Saturday", "Sunday")) {
+        "weekends"
+    } else {
+        "weekdays"
+    }
+}
+monitoringClean$daytype <- as.factor(sapply(monitoringClean$date, daytype))
+
+par(mfrow = c(2, 1))
+for (type in c("weekends", "weekdays")) {
+    monitoringWeek <- aggregate(x = monitoringClean$steps , 
+                                by = list(monitoringClean$interval), 
+                                subset = monitoringClean$daytype == type,
+                                FUN = mean , na.rm=TRUE) 
+    plot(monitoringWeek, type = "l", main = type)
+}
+ 
+```
